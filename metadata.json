@@ -1,0 +1,6 @@
+{
+  "name": "SteamKeyQuest",
+  "description": "Plataforma de sorteios e desafios de chaves Steam.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
