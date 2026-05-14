@@ -9,8 +9,8 @@ import 'dotenv/config';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // Initialize Supabase
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 if (!supabaseUrl || !supabaseKey) {
   console.warn('[Supabase] Missing Supabase configuration. Ensure NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are set in Secrets.');
@@ -73,7 +73,7 @@ async function startServer() {
 
   // Admin: Verify password
   app.post('/api/admin/verify', (req, res) => {
-    const { password } = req.body;
+    const password = req.headers['x-admin-password'] || req.body.password;
     const correctPassword = process.env.ADMIN_PASSWORD;
     
     if (!correctPassword) {
@@ -310,7 +310,8 @@ async function startServer() {
 
   // Admin: Create giveaway
   app.post('/api/admin/giveaways', async (req, res) => {
-    const { password, title, fullKey, puzzleHint, hiddenPositions, platform } = req.body;
+    const password = req.headers['x-admin-password'] || req.body.password;
+    const { title, fullKey, puzzleHint, hiddenPositions, platform } = req.body;
     if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
 
     try {
@@ -362,7 +363,7 @@ async function startServer() {
 
   // Admin: Delete giveaway
   app.delete('/api/admin/giveaways/:id', async (req, res) => {
-    const { password } = req.query;
+    const password = req.headers['x-admin-password'] as string;
     const { id } = req.params;
     if (password !== process.env.ADMIN_PASSWORD) return res.status(401).json({ error: 'Unauthorized' });
 

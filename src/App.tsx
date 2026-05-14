@@ -141,6 +141,8 @@ export default function App() {
       setStatusMsg({ type: 'error', text: 'Erro de rede: Não foi possível comunicar com o servidor.' });
     } finally {
       setIsLoading(false);
+      fetchGiveaways();
+      checkEligibility();
       // Auto-clear messages after a few seconds
       setTimeout(() => setStatusMsg(prev => prev?.type === 'success' || prev?.type === 'error' ? null : prev), 5000);
     }
@@ -148,7 +150,13 @@ export default function App() {
 
   const handleShare = async (e: React.MouseEvent, g: Giveaway) => {
     e.stopPropagation();
-    const shareUrl = window.location.origin + window.location.pathname;
+    let shareUrl = window.location.origin + window.location.pathname;
+    
+    // AI Studio Fix: Se estivermos no ambiente de desenvolvimento, mudamos o link para a versão de partilha (pre)
+    if (shareUrl.includes('ais-dev-')) {
+      shareUrl = shareUrl.replace('ais-dev-', 'ais-pre-');
+    }
+
     const text = `🕵️‍♂️ Decifra o puzzle do jogo "${g.title}" e ganha a chave Steam antes de todos! #SteamKeyQuest`;
     
     // Attempt navigator.share first
@@ -195,9 +203,11 @@ export default function App() {
     try {
       const res = await fetch('/api/admin/giveaways', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'x-admin-password': adminPassword
+        },
         body: JSON.stringify({
-          password: adminPassword,
           title: newGiveaway.title,
           fullKey: newGiveaway.fullKey,
           puzzleHint: newGiveaway.puzzleHint,
@@ -229,8 +239,9 @@ export default function App() {
   const handleDeleteGiveaway = async (id: string) => {
     if (!confirm('Tem a certeza?')) return;
     try {
-      await fetch(`/api/admin/giveaways/${id}?password=${adminPassword}`, {
-        method: 'DELETE'
+      await fetch(`/api/admin/giveaways/${id}`, {
+        method: 'DELETE',
+        headers: { 'x-admin-password': adminPassword }
       });
       fetchGiveaways();
     } catch (e) {
@@ -394,7 +405,7 @@ export default function App() {
               <div className="flex justify-between items-center mb-8">
                 <button 
                   onClick={() => { setView('home'); setSelectedGiveaway(null); setFullKeyResult(null); setPuzzleInput(''); }}
-                  className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors font-bold uppercase tracking-widest text-[10px]"
+                  className="flex items-center gap-2 text-slate-400 hover:text-cyan-400 transition-colors font-bold uppercase tracking-widest text-[10px] w-[110px]"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Return to Vault
@@ -542,13 +553,27 @@ export default function App() {
             >
               <div className="flex items-center justify-between">
                  <h2 className="text-3xl font-black text-white uppercase tracking-tight italic">Root<span className="text-cyan-500">Access</span></h2>
-                 <button 
-                  onClick={() => setShowAdminLogin(!showAdminLogin)}
-                  className="bg-slate-900 px-4 py-2 rounded border border-slate-800 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors"
-                >
-                  {showAdminLogin ? <EyeOff className="w-4 h-4 mr-2 inline" /> : <Eye className="w-4 h-4 mr-2 inline" />}
-                  {showAdminLogin ? 'Mask Console' : 'Reveal Console'}
-                </button>
+                 <div className="flex gap-2">
+                   <button 
+                    onClick={() => setShowAdminLogin(!showAdminLogin)}
+                    className="bg-slate-900 px-4 py-2 rounded border border-slate-800 text-[10px] font-bold uppercase tracking-widest text-slate-400 hover:text-white transition-colors w-[110px]"
+                  >
+                    {showAdminLogin ? <EyeOff className="w-4 h-4 mr-2 inline" /> : <Eye className="w-4 h-4 mr-2 inline" />}
+                    {showAdminLogin ? 'Mask Console' : 'Reveal Console'}
+                  </button>
+                  <button 
+                    onClick={() => {
+                      if(confirm('Terminar sessão de administrador?')) {
+                        localStorage.removeItem('admin_password');
+                        setAdminPassword('');
+                        setShowAdminLogin(true);
+                      }
+                    }}
+                    className="bg-red-950/20 px-4 py-2 rounded border border-red-900/50 text-[10px] font-bold uppercase tracking-widest text-red-400 hover:bg-red-900/40 transition-colors"
+                  >
+                    Flush Session
+                  </button>
+                 </div>
               </div>
 
               {showAdminLogin && (
@@ -568,8 +593,10 @@ export default function App() {
                         onClick={async () => {
                           const res = await fetch('/api/admin/verify', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ password: adminPassword })
+                            headers: { 
+                              'Content-Type': 'application/json',
+                              'x-admin-password': adminPassword
+                            }
                           });
                           if (res.ok) {
                             alert('✅ Password Correta!');
