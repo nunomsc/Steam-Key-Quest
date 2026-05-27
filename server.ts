@@ -7,7 +7,7 @@ import { createClient } from '@supabase/supabase-js';
 import 'dotenv/config';
 import crypto from 'crypto';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const __dirname = process.cwd();
 
 // Security: Simple in-memory rate limiter for admin attempts
 const adminAttempts = new Map<string, { count: number; lockUntil: number }>();
