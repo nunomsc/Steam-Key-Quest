@@ -31,6 +31,27 @@ const getBrowserId = () => {
   return id;
 };
 
+const getFingerprint = () => {
+  const n = navigator;
+  const s = window.screen;
+  const str = [
+    n.userAgent,
+    n.language,
+    s.colorDepth,
+    s.width + 'x' + s.height,
+    new Date().getTimezoneOffset(),
+    n.hardwareConcurrency
+  ].join('|');
+  
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash;
+  }
+  return 'fp_' + Math.abs(hash).toString(16);
+};
+
 export default function App() {
   const [view, setView] = useState<'home' | 'puzzle' | 'admin'>('home');
   const [giveaways, setGiveaways] = useState<Giveaway[]>([]);
@@ -92,8 +113,9 @@ export default function App() {
   };
 
   const checkEligibility = async () => {
+    const fingerprint = getFingerprint();
     try {
-      const res = await fetch(`/api/eligibility/${userId}`);
+      const res = await fetch(`/api/eligibility/${userId}?fp=${fingerprint}`);
       const data = await res.json();
       setEligibility(data);
     } catch (e) {
@@ -112,11 +134,17 @@ export default function App() {
     if (!eligibility?.eligible) return;
     
     setIsLoading(true);
+    const fingerprint = getFingerprint();
     try {
       const res = await fetch('/api/claim', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ giveawayId, userId, puzzleSolutions: puzzleInput })
+        body: JSON.stringify({ 
+          giveawayId, 
+          userId, 
+          puzzleSolutions: puzzleInput,
+          fingerprint
+        })
       });
       
       const contentType = res.headers.get("content-type");
@@ -237,15 +265,22 @@ export default function App() {
   };
 
   const handleDeleteGiveaway = async (id: string) => {
-    if (!confirm('Tem a certeza?')) return;
+    if (!confirm('Tem a certeza que deseja eliminar este sorteio?')) return;
     try {
-      await fetch(`/api/admin/giveaways/${id}`, {
+      const res = await fetch(`/api/admin/giveaways/${id}`, {
         method: 'DELETE',
         headers: { 'x-admin-password': adminPassword }
       });
-      fetchGiveaways();
+      
+      if (res.ok) {
+        fetchGiveaways();
+      } else {
+        const data = await res.json();
+        alert(`Erro ao eliminar: ${data.error || res.statusText}`);
+      }
     } catch (e) {
       console.error('Delete error', e);
+      alert('Erro de rede ao tentar eliminar.');
     }
   };
 
@@ -369,12 +404,30 @@ export default function App() {
                           </div>
                         </div>
 
-                        <div className="flex gap-1 justify-center">
-                          {g.maskedKey.split('').map((char, i) => (
-                            <div key={i} className={`flex items-center justify-center w-8 h-10 key-slot text-sm font-bold ${char === '_' ? 'text-cyan-400 animate-pulse' : 'text-slate-400'}`}>
-                              {char === '_' ? '?' : char}
+                        <div className="flex gap-1 justify-center relative overflow-hidden rounded-lg bg-black/80 py-2 px-4 border border-white/5 group-hover:border-cyan-500/30 transition-all">
+                          {/* Proper Backdrop Blur Layer - Reduced blur (50% of previous) */}
+                          <div className="absolute inset-0 z-10 backdrop-blur-[4px] bg-black/40 select-none pointer-events-none group-hover:backdrop-blur-[8px] transition-all duration-500"></div>
+                          
+                          {/* Hacker/Scan Animation */}
+                          <div className="absolute inset-0 z-20 overflow-hidden pointer-events-none opacity-30">
+                            <div className="w-full h-[2px] bg-cyan-400/50 blur-[1px] absolute animate-[scan_2s_linear_infinite]"></div>
+                          </div>
+
+                          <div className="flex gap-1 relative z-0">
+                            {g.maskedKey.split('').map((char, i) => (
+                              <div key={i} className={`flex items-center justify-center w-6 h-8 rounded border border-white/10 bg-white/[0.02] text-xs font-mono font-bold ${char === '_' ? 'text-cyan-400' : 'text-white/70'}`}>
+                                {char === '_' ? '?' : char}
+                              </div>
+                            ))}
+                          </div>
+
+                          {g.status === 'active' && (
+                            <div className="absolute inset-0 z-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="bg-cyan-500 text-black px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(6,182,212,0.6)] scale-90 group-hover:scale-100 transition-transform">
+                                RESOLVER PISTA
+                              </div>
                             </div>
-                          ))}
+                          )}
                         </div>
 
                         <div className="flex items-center justify-between border-t border-white/5 pt-6">
@@ -432,15 +485,22 @@ export default function App() {
 
                 <div className="space-y-12">
                   <div className="flex flex-col items-center gap-8">
-                    <div 
-                      className={`flex flex-wrap gap-2 justify-center ${fullKeyResult ? 'cursor-pointer' : ''}`}
-                      onClick={fullKeyResult ? handleCopyKey : undefined}
-                    >
-                       {(fullKeyResult || selectedGiveaway.maskedKey).split('').map((char, i) => (
-                          <div key={i} className={`flex items-center justify-center w-12 h-16 key-slot text-2xl font-bold ${char === '_' || char === '?' ? 'text-cyan-400' : (fullKeyResult ? 'text-cyan-300 winner-pulse shadow-cyan-500/20 border-cyan-500/50' : 'text-white')}`}>
-                            {char === '_' ? '?' : char}
-                          </div>
-                       ))}
+                    <div className="relative overflow-hidden rounded-xl bg-black/60 p-6 border border-white/5 mx-auto">
+                      {/* Reduced Blur Layer - only visible when not claimed yet */}
+                      {!fullKeyResult && (
+                        <div className="absolute inset-0 z-10 backdrop-blur-[4px] bg-black/40 select-none pointer-events-none"></div>
+                      )}
+                      
+                      <div 
+                        className={`flex flex-wrap gap-2 justify-center relative z-0 ${fullKeyResult ? 'cursor-pointer' : ''}`}
+                        onClick={fullKeyResult ? handleCopyKey : undefined}
+                      >
+                         {(fullKeyResult || selectedGiveaway.maskedKey).split('').map((char, i) => (
+                            <div key={i} className={`flex items-center justify-center w-12 h-16 key-slot text-2xl font-bold ${char === '_' || char === '?' ? 'text-cyan-400' : (fullKeyResult ? 'text-cyan-300 winner-pulse shadow-cyan-500/20 border-cyan-500/50' : 'text-white')}`}>
+                              {char === '_' ? '?' : char}
+                            </div>
+                         ))}
+                      </div>
                     </div>
 
                     {!fullKeyResult && (

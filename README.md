@@ -23,8 +23,16 @@ Este projeto é uma aplicação full-stack (React + Express + Supabase).
       SUPABASE_SERVICE_ROLE_KEY=tua_key_service_role
       ADMIN_PASSWORD=teu_pass_admin
       ```
-4.  **Base de Dados:**
+4.  **Base de Dados e Segurança (Row Level Security - RLS):**
     - Garanta que tens as tabelas `giveaways` e `users` criadas na Supabase.
+    - **Importante (Segurança RLS):** Para evitar que utilizadores maliciosos encontrem a chave pública (`anon`) e obtenham as chaves completas dos sorteios (`full_key`) diretamente da API Rest da Supabase (ultrapassando as pistas), precisas de ativar o **Row Level Security (RLS)** nas tuas tabelas.
+    - Executa as seguintes consultas no **SQL Editor** da Supabase (disponível no menu lateral do teu painel Supabase, ou copia o conteúdo do ficheiro `/supabase_rls.sql` na raiz do projeto):
+      ```sql
+      -- Ativar Row Level Security (RLS) para proteger os dados públicos
+      ALTER TABLE public.giveaways ENABLE ROW LEVEL SECURITY;
+      ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+      ```
+    - **Nota:** Como o nosso servidor Express utiliza a `SUPABASE_SERVICE_ROLE_KEY` para iniciar o cliente Supabase, as operações do servidor continuarão a funcionar na perfeição e de forma 100% segura, pois o modo Service Role ultrapassa nativamente as políticas de RLS da base de dados.
 
 ## Execução
 
@@ -39,3 +47,9 @@ Aceda a `http://localhost:3000`.
 npm run build
 npm start
 ```
+
+## Prompt de Geração
+
+Este projeto foi gerado no **AI Studio Build** com a seguinte base:
+
+> "Cria uma aplicação de sorteios de chaves (giveaways) com um sistema de puzzles. As chaves devem estar parcialmente escondidas e o utilizador precisa de resolver uma pista lógica para as completar. Implementa proteção rigorosa contra abusos usando ID de utilizador, IP e Browser Fingerprint. Adiciona um sistema de 'Cooldown' onde vencedores ficam bloqueados por 3 rondas e utilizadores que falhem muitas vezes ficam bloqueados temporariamente. O design deve ser estilo 'Cyber/Hacker' escuro, com animações de scanline e chaves com efeito de blur constante que só é 'decifrado' ao introduzir a solução correta no backend. Inclui um painel de administração protegido por password para gerir os sorteios."

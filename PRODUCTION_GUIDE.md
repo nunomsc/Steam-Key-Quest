@@ -4,40 +4,47 @@ Este guia contém os passos necessários para mover a aplicação do AI Studio p
 
 ## 1. Configuração da Supabase (Backend)
 
-A aplicação depende da Supabase para persistência de dados. Garante que as tuas tabelas estão configuradas com os nomes exatos detetados no teu dashboard:
-
-### Tabelas Necessárias
-
-#### Tabela: `giveaways`
-- `id`: uuid (Primary Key, default: `gen_random_uuid()`)
-- `title`: text
-- `full_key`: text
-- `puzzle_hint`: text
-- `hidden_positions`: jsonb
-- `status`: text (default: 'active')
-- `winnerId`: text (nullable)
-- `platform`: text (ex: 'Steam')
-- `created_at`: text (ISO string)
-
-#### Tabela: `users`
-- `id`: text (Primary Key - ID do utilizador vindo do frontend)
-- `lastWinIndex`: int8 (default: 0)
-- `skipRemaining`: int4 (default: 1)
-- `failedAttempts`: int4 (default: 0)
-
-### Função RPC (IMPORTANTE)
-Cria esta função no SQL Editor da Supabase para que o sistema de cooldown e skips funcione:
+A aplicação depende da Supabase para persistir sorteios e utilizadores. Para garantir que tudo funciona (incluindo as proteções anti-incógnito e o sistema de rounds), executa o seguinte SQL no **SQL Editor** do teu projeto Supabase:
 
 ```sql
-create or replace function decrement_skip_counts(winner_id_param text)
-returns void as $$
-begin
-  update users
-  set "skipRemaining" = greatest(0, "skipRemaining" - 1)
-  where id != winner_id_param
-    and "skipRemaining" > 0;
-end;
-$$ language plpgsql security definer;
+-- TABELA: giveaways (Sorteios)
+CREATE TABLE IF NOT EXISTS giveaways (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  title TEXT NOT NULL,
+  full_key TEXT NOT NULL,
+  puzzle_hint TEXT,
+  hidden_positions INT[] DEFAULT '{}',
+  status TEXT DEFAULT 'active',
+  winner_id TEXT, 
+  platform TEXT DEFAULT 'Steam',
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- TABELA: users (Estado dos Caçadores)
+CREATE TABLE IF NOT EXISTS users (
+  id TEXT PRIMARY KEY,           
+  ip TEXT,                       -- NOVO: Proteção contra Incógnito
+  fingerprint TEXT,              -- NOVO: Proteção contra Incógnito
+  skip_remaining INT DEFAULT 0,  
+  failed_attempts INT DEFAULT 0, 
+  last_win_at TIMESTAMPTZ
+);
+
+-- FUNÇÃO RPC: Decrementar rounds de cooldown
+CREATE OR REPLACE FUNCTION decrement_skip_counts(winner_id_param TEXT)
+RETURNS void AS $$
+BEGIN
+  -- Tenta decrementar na coluna snake_case
+  UPDATE users
+  SET skip_remaining = GREATEST(0, skip_remaining - 1)
+  WHERE id != winner_id_param AND skip_remaining > 0;
+  
+  -- Tenta decrementar na coluna camelCase (legado)
+  UPDATE users
+  SET "skipRemaining" = GREATEST(0, "skipRemaining" - 1)
+  WHERE id != winner_id_param AND "skipRemaining" > 0;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
 ```
 
 ---
@@ -159,5 +166,22 @@ Usa o Certbot (conforme descrito no passo 4 da Opção A) para obter um certific
 
 ---
 
-## 6. Nota sobre Segurança de Administrador
+## 6. Segurança e Endurecimento (Hardening)
+A aplicação inclui várias camadas de proteção:
+1. **Rate Limiting:** O endpoint `/api/claim` está limitado por IP para evitar ataques de força bruta.
+2. **Timing Attack Protection:** A verificação de password de admin usa comparação em tempo constante.
+3. **Sensitive Key Isolation:** Chaves como a `SERVICE_ROLE_KEY` nunca são enviadas para o browser.
+4. **Sanitização:** Erros internos da base de dados são mascarados para o utilizador final.
+5. **Fingerprint & IP Defense:** Foram adicionados mecanismos para dificultar a participação via janelas anónimas (Incógnito), associando o estado de cooldown ao IP e à assinatura do browser.
+
+## 7. Nota sobre Segurança de Administrador
 As credenciais de administrador já não são enviadas via URL, o que evita que fiquem gravadas em logs (Hetzner/Nginx). No entanto, para segurança máxima em produção "Enterprise", recomenda-se a integração com o Supabase Auth para gerir utilizadores administrativos em vez de uma password única no `.env`.
+
+---
+
+## 8. Ideias de Monetização (Mínima)
+Como o objetivo é algo simples e não intrusivo:
+1. **Afiliados (Instant Gaming / Humble Bundle):** Podes colocar links de afiliados para os jogos que estás a oferecer. Se alguém quiser o jogo sem esperar pelo sorteio, tu ganhas uma comissão.
+2. **Buy Me a Coffee / Patreon:** Um botão pequeno e elegante no fundo da página ("Support the Vault") para doações voluntárias.
+3. **Google AdSense:** Banners pequenos (ex: um lateral ou um no fundo). Atenção para não quebrar a estética "Hacker".
+4. **Micro-Transações de Puzzle:** Cobrar um valor simbólico (ex: 0.10€ via Stripe) para revelar instantaneamente uma letra do puzzle (não recomendado se o foco for 100% grátis).

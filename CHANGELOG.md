@@ -1,5 +1,31 @@
 # Histórico de Versões - SteamKeyQuest
 
+## [V1.2.2] - 2024-05-14
+### Corrigido
+- Typo na mensagem de erro de cooldown ("rounts" -> "rounds").
+- Pequenos ajustes de log no servidor para debug.
+- Atualização do guia de produção com sugestões de monetização.
+
+## [V1.2.1] - 2024-05-14
+### Corrigido
+- Melhorado o feedback visual e tratamento de erros no botão de eliminar sorteios (Trash icon).
+- Adicionadas mensagens de alerta para erros de autorização ou rede no BackOffice.
+
+## [V1.2.0] - 2024-05-14
+### Adicionado
+- Endurecimento de Segurança (Security Hardening):
+  - Removida exposição da `GEMINI_API_KEY` no bundle do cliente.
+  - Implementado Rate Limiting (IP-based) no endpoint de resgate (`/api/claim`).
+  - Sanitização de respostas de erro e endpoint de saúde (`/api/health`).
+  - Obrigatoriedade da `SUPABASE_SERVICE_ROLE_KEY` no servidor (sem fallback inseguro).
+  - Proteção contra Timing Attacks e Lockout automático para admin.
+
+## [V1.1.5] - 2024-05-14
+### Adicionado
+- Proteção contra Timing Attacks usando `crypto.timingSafeEqual` no backend.
+- Rate Limiting (Lockout) para tentativas de login de administrador (bloqueio de 15min após 5 falhas).
+- Middleware centralizado `adminAuth` para garantir consistência na proteção de rotas.
+
 ## [V1.1.4] - 2024-05-14
 ### Corrigido (Crítico)
 - Segurança: Removida a password de administrador dos parâmetros de URL (Query String) nas chamadas de API.
