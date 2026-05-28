@@ -103,7 +103,7 @@ async function startServer() {
     claimLimiter.set(ip, entry);
 
     if (entry.count > MAX_CLAIMS_PER_WINDOW) {
-      return res.status(429).json({ error: 'Demasiadas tentativas (Rate Limit). Aguarde um minuto.' });
+      return res.status(429).json({ error: 'Too many attempts (Rate Limit). Please wait a minute.' });
     }
     next();
   };
@@ -115,12 +115,12 @@ async function startServer() {
     const clientIp = ((req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
 
     if (isLocked(clientIp)) {
-      return res.status(429).json({ error: 'Demasiadas tentativas falhadas. Bloqueado por 15 minutos.' });
+      return res.status(429).json({ error: 'Too many failed attempts. Locked for 15 minutes.' });
     }
 
     if (!correctPassword) {
       console.error('[Security] ADMIN_PASSWORD not set!');
-      return res.status(500).json({ error: 'Erro de Configuração no Servidor.' });
+      return res.status(500).json({ error: 'Server configuration error.' });
     }
 
     if (secureCompare(password, correctPassword)) {
@@ -128,7 +128,7 @@ async function startServer() {
       next();
     } else {
       recordAttempt(clientIp, false);
-      res.status(401).json({ error: 'Password incorreta' });
+      res.status(401).json({ error: 'Incorrect password' });
     }
   };
 
@@ -182,7 +182,7 @@ async function startServer() {
       res.json(masked);
     } catch (error: any) {
       console.error('[Error] Fetching giveaways:', error.message);
-      res.status(500).json({ error: 'Erro ao carregar sorteios. Verifique o console.' });
+      res.status(500).json({ error: 'Error loading giveaways. Check the console.' });
     }
   });
 
@@ -218,14 +218,14 @@ async function startServer() {
       res.json({ eligible: maxSkip === 0, skipRemaining: maxSkip });
     } catch (error: any) {
       console.error('[Error] Eligibility check:', error.message);
-      res.status(500).json({ error: 'Pendente' });
+      res.status(500).json({ error: 'Pending' });
     }
   });
 
   // Public: Claim a key
   app.post('/api/claim', rateLimitMiddleware, async (req, res) => {
     const { giveawayId, userId, puzzleSolutions, fingerprint } = req.body;
-    if (!giveawayId || !userId) return res.status(400).json({ error: 'Faltam parâmetros' });
+    if (!giveawayId || !userId) return res.status(400).json({ error: 'Missing parameters' });
     const clientIp = ((req.headers['x-forwarded-for'] as string) || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
 
     try {
@@ -236,8 +236,8 @@ async function startServer() {
         .eq('id', giveawayId)
         .single();
 
-      if (gError || !giveaway) return res.status(404).json({ error: 'Sorteio não encontrado' });
-      if (giveaway.status === 'claimed') return res.status(409).json({ error: 'Já foi resgatado!' });
+      if (gError || !giveaway) return res.status(404).json({ error: 'Giveaway not found' });
+      if (giveaway.status === 'claimed') return res.status(409).json({ error: 'Already claimed!' });
 
       // Identity Hardening: Check if this IP or Fingerprint is already in cooldown
       let filter = `id.eq."${userId}",ip.eq."${clientIp}"`;
@@ -257,7 +257,7 @@ async function startServer() {
           if (s > maxSkip) maxSkip = s;
         });
         if (maxSkip > 0) {
-          return res.status(403).json({ error: `COOLDOWN: Aguarde mais ${maxSkip} rounds (Proteção Ativa).` });
+          return res.status(403).json({ error: `COOLDOWN: Please wait ${maxSkip} more rounds (Active Protection).` });
         }
       }
 
@@ -290,10 +290,10 @@ async function startServer() {
         await supabase.from('users').update({ ip: clientIp, fingerprint: fingerprint || 'none' }).eq('id', userId);
       }
 
-      if (!user) throw new Error('Não foi possível identificar ou criar o utilizador.');
+      if (!user) throw new Error('Could not identify or create user.');
 
       const skipCount = user.skip_remaining || 0;
-      if (skipCount > 0) return res.status(403).json({ error: `COOLDOWN: Aguarde mais ${skipCount} rounds.` });
+      if (skipCount > 0) return res.status(403).json({ error: `COOLDOWN: Please wait ${skipCount} more rounds.` });
 
       const hiddenPositions = giveaway.hidden_positions || [];
       const fullKey = giveaway.full_key || '';
@@ -313,9 +313,9 @@ async function startServer() {
         await supabase.from('users').update(updateObj).eq('id', userId);
         
         if (newFailed >= 3) {
-          return res.status(400).json({ error: 'BRUTE_FORCE: Demasiadas tentativas FALHADAS. Cooldown de 1 drop.' });
+          return res.status(400).json({ error: 'BRUTE_FORCE: Too many FAILED attempts. Cooldown of 1 drop.' });
         }
-        return res.status(400).json({ error: 'Solução incorreta!', attempts: newFailed });
+        return res.status(400).json({ error: 'Incorrect solution!', attempts: newFailed });
       }
 
       // 3. ATOMIC SUCCESS
@@ -328,7 +328,7 @@ async function startServer() {
 
       if (updateError || !updatedGiveaway) {
         console.error('[Claim] Update failed:', updateError?.message);
-        return res.status(409).json({ error: 'ALREADY_CLAIMED: Alguém foi mais rápido!' });
+        return res.status(409).json({ error: 'ALREADY_CLAIMED: Someone claimed it faster!' });
       }
 
       // Update winner profile
@@ -362,7 +362,7 @@ async function startServer() {
 
     } catch (error: any) {
       console.error('[Error] Claim process:', error.message);
-      res.status(500).json({ error: 'Erro no processamento.' });
+      res.status(500).json({ error: 'Error in processing.' });
     }
   });
 
@@ -391,7 +391,7 @@ async function startServer() {
       res.json(data);
     } catch (err: any) {
       console.error('[Error] Creating giveaway:', err.message);
-      res.status(500).json({ error: 'Erro ao criar sorteio na Supabase.' });
+      res.status(500).json({ error: 'Error creating giveaway in Supabase.' });
     }
   });
 
@@ -409,7 +409,7 @@ async function startServer() {
       console.log(`[Admin] Successfully deleted giveaway: ${id}`);
       res.json({ success: true });
     } catch (error: any) {
-      res.status(500).json({ error: 'Erro ao eliminar da base de dados.' });
+      res.status(500).json({ error: 'Error deleting from database.' });
     }
   });
 

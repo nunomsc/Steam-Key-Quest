@@ -153,20 +153,20 @@ export default function App() {
         if (data.success && data.fullKey) {
           setFullKeyResult(data.fullKey);
           setPuzzleInput('');
-          setStatusMsg({ type: 'success', text: 'Chave extraída com sucesso!' });
+          setStatusMsg({ type: 'success', text: 'Key decrypted successfully!' });
           fetchGiveaways();
           checkEligibility();
         } else {
-          setStatusMsg({ type: 'error', text: data.error || 'Erro ao resgatar chave.' });
+          setStatusMsg({ type: 'error', text: data.error || 'Error claiming key.' });
         }
       } else {
         const text = await res.text();
         console.error('Server returned non-JSON response:', text);
-        setStatusMsg({ type: 'error', text: 'O servidor não retornou uma resposta válida.' });
+        setStatusMsg({ type: 'error', text: 'The server did not return a valid response.' });
       }
     } catch (e: any) {
       console.error('Claim error', e);
-      setStatusMsg({ type: 'error', text: 'Erro de rede: Não foi possível comunicar com o servidor.' });
+      setStatusMsg({ type: 'error', text: 'Network error: Could not communicate with the server.' });
     } finally {
       setIsLoading(false);
       fetchGiveaways();
@@ -180,12 +180,12 @@ export default function App() {
     e.stopPropagation();
     let shareUrl = window.location.origin + window.location.pathname;
     
-    // AI Studio Fix: Se estivermos no ambiente de desenvolvimento, mudamos o link para a versão de partilha (pre)
+    // AI Studio Fix: If we are in the development environment, change the link to the share version (pre)
     if (shareUrl.includes('ais-dev-')) {
       shareUrl = shareUrl.replace('ais-dev-', 'ais-pre-');
     }
 
-    const text = `🕵️‍♂️ Decifra o puzzle do jogo "${g.title}" e ganha a chave Steam antes de todos! #SteamKeyQuest`;
+    const text = `🕵️‍♂️ Solve the puzzle for "${g.title}" and win the game key before anyone else! #SteamKeyQuest`;
     
     // Attempt navigator.share first
     if (navigator.share) {
@@ -204,11 +204,11 @@ export default function App() {
     // Fallback: Copy to clipboard
     try {
       await navigator.clipboard.writeText(`${text} ${shareUrl}`);
-      setStatusMsg({ type: 'success', text: 'Link de partilha copiado!' });
+      setStatusMsg({ type: 'success', text: 'Share link copied!' });
       setTimeout(() => setStatusMsg(null), 3000);
     } catch (err) {
       console.error('Clipboard failed:', err);
-      alert('Não foi possível partilhar ou copiar. Tenta copiar o URL do browser.');
+      alert('Could not share or copy. Try copying the browser\'s URL.');
     }
   };
 
@@ -248,15 +248,15 @@ export default function App() {
 
       if (res.ok) {
         setNewGiveaway({ title: '', fullKey: '', puzzleHint: '', hiddenIndicesText: '', platform: 'Steam' });
-        setStatusMsg({ type: 'success', text: 'Sorteio publicado com sucesso!' });
+        setStatusMsg({ type: 'success', text: 'Giveaway successfully posted!' });
         fetchGiveaways();
         localStorage.setItem('admin_password', adminPassword);
       } else {
-        setStatusMsg({ type: 'error', text: data.error || 'Erro na autenticação ou dados.' });
+        setStatusMsg({ type: 'error', text: data.error || 'Authentication or data error.' });
       }
     } catch (e) {
       console.error('Create error', e);
-      setStatusMsg({ type: 'error', text: 'Erro de rede ou servidor.' });
+      setStatusMsg({ type: 'error', text: 'Network or server error.' });
     } finally {
       setIsLoading(false);
       // Auto-clear success message after 5s
@@ -265,7 +265,7 @@ export default function App() {
   };
 
   const handleDeleteGiveaway = async (id: string) => {
-    if (!confirm('Tem a certeza que deseja eliminar este sorteio?')) return;
+    if (!confirm('Are you sure you want to delete this giveaway?')) return;
     try {
       const res = await fetch(`/api/admin/giveaways/${id}`, {
         method: 'DELETE',
@@ -276,11 +276,11 @@ export default function App() {
         fetchGiveaways();
       } else {
         const data = await res.json();
-        alert(`Erro ao eliminar: ${data.error || res.statusText}`);
+        alert(`Error deleting: ${data.error || res.statusText}`);
       }
     } catch (e) {
       console.error('Delete error', e);
-      alert('Erro de rede ao tentar eliminar.');
+      alert('Network error trying to delete.');
     }
   };
 
@@ -332,7 +332,7 @@ export default function App() {
             <button 
               onClick={() => setView(view === 'admin' ? 'home' : 'admin')}
               className="p-2 hover:bg-white/5 rounded-full transition-colors text-slate-400 hover:text-white"
-              title="Administração"
+              title="Administration"
             >
               <Settings className="w-5 h-5" />
             </button>
@@ -395,7 +395,7 @@ export default function App() {
                               <button 
                                 onClick={(e) => handleShare(e, g)}
                                 className="p-2 bg-white/5 rounded-lg text-slate-500 hover:text-cyan-400 hover:bg-white/10 transition-all ml-auto"
-                                title="Partilhar"
+                                title="Share"
                               >
                                 <Share2 className="w-4 h-4" />
                               </button>
@@ -424,7 +424,7 @@ export default function App() {
                           {g.status === 'active' && (
                             <div className="absolute inset-0 z-30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                               <div className="bg-cyan-500 text-black px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-[0.2em] shadow-[0_0_20px_rgba(6,182,212,0.6)] scale-90 group-hover:scale-100 transition-transform">
-                                RESOLVER PISTA
+                                DECRYPT CLUE
                               </div>
                             </div>
                           )}
@@ -659,11 +659,11 @@ export default function App() {
                             }
                           });
                           if (res.ok) {
-                            alert('✅ Password Correta!');
+                            alert('✅ Password Correct!');
                             localStorage.setItem('admin_password', adminPassword);
                           } else {
                             const data = await res.json();
-                            alert('❌ Erro: ' + (data.error || 'Password Incorreta'));
+                            alert('❌ Error: ' + (data.error || 'Incorrect Password'));
                           }
                         }}
                         className="mt-4 w-full py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-black uppercase tracking-widest rounded transition-all"
@@ -750,7 +750,7 @@ export default function App() {
                                 return indices.includes(index) ? '_' : char;
                               }).join('')}
                             </p>
-                            <p className="text-[8px] text-slate-600 italic mt-1">* Os hifens (-) também ocupam uma posição na contagem.</p>
+                            <p className="text-[8px] text-slate-600 italic mt-1">* Hyphens (-) also occupy a position in the index count.</p>
                           </div>
                         )}
                       </div>
