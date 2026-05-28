@@ -185,13 +185,13 @@ export default function App() {
       shareUrl = shareUrl.replace('ais-dev-', 'ais-pre-');
     }
 
-    const text = `🕵️‍♂️ Solve the puzzle for "${g.title}" and win the game key before anyone else! #SteamKeyQuest`;
+    const text = `🕵️‍♂️ Solve the puzzle for "${g.title}" and win the game key before anyone else! #KeyQuest`;
     
     // Attempt navigator.share first
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'SteamKeyQuest',
+          title: 'KeyQuest',
           text: text,
           url: shareUrl,
         });
@@ -317,9 +317,9 @@ export default function App() {
             onClick={() => { setView('home'); setSelectedGiveaway(null); setFullKeyResult(null); }}
           >
             <div className="w-8 h-8 bg-cyan-500 rounded-lg flex items-center justify-center rotate-45 group-hover:scale-110 transition-transform">
-              <div className="-rotate-45 text-black font-bold">S</div>
+              <div className="-rotate-45 text-black font-bold">KQ</div>
             </div>
-            <h1 className="text-xl font-bold tracking-tighter text-white uppercase">Steam<span className="text-cyan-400">Quest</span></h1>
+            <h1 className="text-xl font-bold tracking-tighter text-white uppercase">Key<span className="text-cyan-400">Quest</span></h1>
           </div>
 
           <div className="flex items-center gap-4">
@@ -623,7 +623,7 @@ export default function App() {
                   </button>
                   <button 
                     onClick={() => {
-                      if(confirm('Terminar sessão de administrador?')) {
+                      if(confirm('End administrator session?')) {
                         localStorage.removeItem('admin_password');
                         setAdminPassword('');
                         setShowAdminLogin(true);

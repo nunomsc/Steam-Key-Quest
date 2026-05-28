@@ -1,4 +1,4 @@
-# SteamKeyQuest (Local Setup)
+# KeyQuest (Local Setup)
 
 Este projeto é uma aplicação full-stack (React + Express + Supabase).
 
